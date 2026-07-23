@@ -3751,10 +3751,15 @@ void Encoder::initPPS(PPS *pps)
     bool bIsVbv = m_param->rc.vbvBufferSize > 0 && m_param->rc.vbvMaxBitrate > 0;
     bool bEnableDistOffset = m_param->analysisMultiPassDistortion && m_param->rc.bStatRead;
 
-    if (!m_param->bLossless && (m_param->rc.aqMode || bIsVbv || m_param->bAQMotion))
+    bool bFoveaActive = m_param->foveaDelta > 0.0f;
+    if (!m_param->bLossless && (m_param->rc.aqMode || bIsVbv || m_param->bAQMotion || bFoveaActive))
     {
         pps->bUseDQP = true;
-        pps->maxCuDQPDepth = g_log2Size[m_param->maxCUSize] - g_log2Size[m_param->rc.qgSize];
+        /* Use 16-block granularity for fovea (matches quantOffsets grid), else use qgSize */
+        if (bFoveaActive && !m_param->rc.aqMode)
+            pps->maxCuDQPDepth = g_log2Size[m_param->maxCUSize] - g_log2Size[16];
+        else
+            pps->maxCuDQPDepth = g_log2Size[m_param->maxCUSize] - g_log2Size[m_param->rc.qgSize];
         X265_CHECK(pps->maxCuDQPDepth <= 3, "max CU DQP depth cannot be greater than 3\n");
     }
     else if (!m_param->bLossless && bEnableDistOffset)

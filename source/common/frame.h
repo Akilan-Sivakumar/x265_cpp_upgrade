@@ -92,6 +92,7 @@ public:
     PicList                refPicSetInterLayer1;
 
     int                    m_poc;
+    int                    m_orig_poc;
     int                    m_encodeOrder;
     int                    m_gopOffset;
     int64_t                m_pts;                // user provided presentation time stamp

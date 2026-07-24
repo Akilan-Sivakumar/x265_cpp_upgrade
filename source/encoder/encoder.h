@@ -310,6 +310,8 @@ public:
 
     int encode(const x265_picture* pic, x265_picture *pic_out);
 
+    int encodeLookaheadOnly(const x265_picture* pic_in, x265_picture* pic_out);
+
     int reconfigureParam(x265_param* encParam, x265_param* param);
 
     bool isReconfigureRc(x265_param* latestParam, x265_param* param_in);

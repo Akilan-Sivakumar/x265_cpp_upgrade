@@ -373,7 +373,7 @@ Mode& Analysis::compressCTU(CUData& ctu, Frame& frame, const CUGeom& cuGeom, con
     }
     
     int reuseLevel = X265_MAX(m_param->analysisSaveReuseLevel, m_param->analysisLoadReuseLevel);
-    if ((strlen(m_param->analysisSave) || strlen(m_param->analysisLoad)) && m_slice->m_sliceType != I_SLICE && reuseLevel > 1 && reuseLevel < 10)
+    if ((strlen(m_param->analysisSave) || strlen(m_param->analysisLoad)) && m_slice->m_sliceType != I_SLICE && reuseLevel > 2 && reuseLevel < 10)
     {
         int numPredDir = m_slice->isInterP() ? 1 : 2;
         m_reuseInterDataCTU = m_frame->m_analysisData.interData;
@@ -401,7 +401,11 @@ Mode& Analysis::compressCTU(CUData& ctu, Frame& frame, const CUGeom& cuGeom, con
     if (m_slice->m_sliceType == I_SLICE || (m_param->bEnableSCC && (m_slice->m_numRefIdx[0] == 1) && m_slice->m_refPOCList[0][0] == m_slice->m_poc))
     {
         x265_analysis_intra_data* intraDataCTU = m_frame->m_analysisData.intraData;
-        if (m_param->analysisLoadReuseLevel > 1)
+        if (m_param->analysisLoadReuseLevel == 2)
+        {
+            memcpy(ctu.m_cuDepth, &intraDataCTU->depth[ctu.m_cuAddr * numPartition], sizeof(uint8_t) * numPartition);
+        }
+        else if (m_param->analysisLoadReuseLevel > 2)
         {
             memcpy(ctu.m_cuDepth, &intraDataCTU->depth[ctu.m_cuAddr * numPartition], sizeof(uint8_t) * numPartition);
             memcpy(ctu.m_lumaIntraDir, &intraDataCTU->modes[ctu.m_cuAddr * numPartition], sizeof(uint8_t) * numPartition);
@@ -712,6 +716,7 @@ uint64_t Analysis::compressIntraCU(const CUData& parentCTU, const CUGeom& cuGeom
 
     bool bAlreadyDecided = m_param->intraRefine != 4 && parentCTU.m_lumaIntraDir[cuGeom.absPartIdx] != (uint8_t)ALL_IDX && !(m_param->bAnalysisType == HEVC_INFO);
     bool bDecidedDepth = m_param->intraRefine != 4 && parentCTU.m_cuDepth[cuGeom.absPartIdx] == depth;
+    bool bUseDepthInfo = m_param->analysisLoadReuseLevel != 2 ? true : (parentCTU.m_cuDepth[cuGeom.absPartIdx] <= depth) && mightNotSplit;
     int split = 0;
     if (m_param->intraRefine && m_param->intraRefine != 4)
     {
@@ -744,7 +749,7 @@ uint64_t Analysis::compressIntraCU(const CUData& parentCTU, const CUGeom& cuGeom
                 addSplitFlagCost(*md.bestMode, cuGeom.depth);
         }
     }
-    else if (cuGeom.log2CUSize != MAX_LOG2_CU_SIZE && mightNotSplit)
+    else if ((m_param->bEnableIntra64x64 || cuGeom.log2CUSize != MAX_LOG2_CU_SIZE) && mightNotSplit && bUseDepthInfo)
     {
         md.pred[PRED_INTRA].cu.initSubCU(parentCTU, cuGeom, qp);
         checkIntra(md.pred[PRED_INTRA], cuGeom, SIZE_2Nx2N);
@@ -888,7 +893,8 @@ uint64_t Analysis::compressIntraCU(const CUData& parentCTU, const CUGeom& cuGeom
 
     // stop recursion if we reach the depth of previous analysis decision
     mightSplit &= !(bAlreadyDecided && bDecidedDepth) || split;
-
+    if((m_param->analysisLoadReuseLevel == 2) && bUseDepthInfo)
+        mightSplit = false;
     if (mightSplit)
     {
         Mode* splitPred = &md.pred[PRED_SPLIT];
@@ -1278,7 +1284,7 @@ uint32_t Analysis::compressInterCU_dist(const CUData& parentCTU, const CUGeom& c
     if (mightNotSplit && depth >= minDepth)
     {
         int bTryAmp = m_slice->m_sps->maxAMPDepth > depth;
-        int bTryIntra = (m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && (!m_param->limitReferences || splitIntra) && (cuGeom.log2CUSize != MAX_LOG2_CU_SIZE);
+        int bTryIntra = (m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && (!m_param->limitReferences || splitIntra) && (m_param->bEnableIntra64x64 || cuGeom.log2CUSize != MAX_LOG2_CU_SIZE);
 
         if (m_slice->m_pps->bUseDQP && depth <= m_slice->m_pps->maxCuDQPDepth && m_slice->m_pps->maxCuDQPDepth != 0)
             setLambdaFromQP(parentCTU, qp);
@@ -1594,7 +1600,7 @@ SplitData Analysis::compressInterCU_rd0_4(const CUData& parentCTU, const CUGeom&
                 mightSplit &= !bDecidedDepth;
             }
         }
-        if ((m_param->analysisLoadReuseLevel > 1 && m_param->analysisLoadReuseLevel != 10))
+        if ((m_param->analysisLoadReuseLevel > 2 && m_param->analysisLoadReuseLevel != 10))
         {
             if (mightNotSplit && depth == m_reuseDepth[cuGeom.absPartIdx])
             {
@@ -1924,7 +1930,7 @@ SplitData Analysis::compressInterCU_rd0_4(const CUData& parentCTU, const CUGeom&
                         }
                     }
                 }
-                bool bTryIntra = (m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && cuGeom.log2CUSize != MAX_LOG2_CU_SIZE && !((m_param->bCTUInfo & 4) && bCtuInfoCheck);
+                bool bTryIntra = (m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && (m_param->bEnableIntra64x64 || cuGeom.log2CUSize != MAX_LOG2_CU_SIZE) && !((m_param->bCTUInfo & 4) && bCtuInfoCheck);
                 if (m_param->rdLevel >= 3)
                 {
                     /* Calculate RD cost of best inter option */
@@ -2309,7 +2315,7 @@ SplitData Analysis::compressInterCU_rd5_6(const CUData& parentCTU, const CUGeom&
                 mightSplit &= !bDecidedDepth;
             }
         }
-        if (m_param->analysisLoadReuseLevel > 1 && m_param->analysisLoadReuseLevel != 10)
+        if (m_param->analysisLoadReuseLevel > 2 && m_param->analysisLoadReuseLevel != 10)
         {
             if (mightNotSplit && depth == m_reuseDepth[cuGeom.absPartIdx])
             {
@@ -2738,7 +2744,7 @@ SplitData Analysis::compressInterCU_rd5_6(const CUData& parentCTU, const CUGeom&
                 }
 #endif
 
-                if ((m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && (cuGeom.log2CUSize != MAX_LOG2_CU_SIZE) && !((m_param->bCTUInfo & 4) && bCtuInfoCheck))
+                if ((m_slice->m_sliceType != B_SLICE || m_param->bIntraInBFrames) && (m_param->bEnableIntra64x64 || cuGeom.log2CUSize != MAX_LOG2_CU_SIZE) && !((m_param->bCTUInfo & 4) && bCtuInfoCheck))
                 {
                     if (!m_param->limitReferences || splitIntra)
                     {
@@ -4328,7 +4334,7 @@ int Analysis::calculateQpforCuSize(const CUData& ctu, const CUGeom& cuGeom, int3
             qp += distortionData->offset[ctu.m_cuAddr];
     }
 
-    if (m_param->analysisLoadReuseLevel >= 2 && m_param->rc.cuTree)
+    if (m_param->analysisLoadReuseLevel > 2 && m_param->rc.cuTree)
     {
         int cuIdx = (ctu.m_cuAddr * ctu.m_numPartitions) + cuGeom.absPartIdx;
         if (ctu.m_slice->m_sliceType == I_SLICE)

@@ -279,6 +279,8 @@ static const struct option long_options[] =
     { "lambda-file",    required_argument, NULL, 0 },
     { "b-intra",              no_argument, NULL, 0 },
     { "no-b-intra",           no_argument, NULL, 0 },
+    { "intra-64x64",          no_argument, NULL, 0 },
+    { "no-intra-64x64",       no_argument, NULL, 0 },
     { "nr-intra",       required_argument, NULL, 0 },
     { "nr-inter",       required_argument, NULL, 0 },
     { "stats",          required_argument, NULL, 0 },

@@ -16,6 +16,7 @@ x265_encoder_headers
 x265_encoder_parameters
 x265_encoder_reconfig
 x265_encoder_encode
+x265_encoder_lookahead
 x265_encoder_get_stats
 x265_encoder_log
 x265_encoder_close

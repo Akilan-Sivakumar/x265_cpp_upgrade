@@ -85,6 +85,7 @@ Frame::Frame()
     m_targetBitrate = 0;
     m_targetCrf = 0;
     m_targetQp = 0;
+    m_orig_poc = -1;
 }
 
 bool Frame::create(x265_param *param, float* quantOffsets)

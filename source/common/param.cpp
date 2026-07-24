@@ -284,6 +284,7 @@ void x265_param_default(x265_param* param)
     param->analysisSave[0] = 0;
     param->analysisLoad[0] = 0;
     param->bIntraInBFrames = 1;
+    param->bEnableIntra64x64 = 0;
     param->bLossless = 0;
     param->bCULossless = 0;
     param->bEnableTemporalSubLayers = 0;
@@ -1528,6 +1529,7 @@ int x265_param_parse(x265_param* p, const char* name, const char* value)
 #endif
         OPT("frame-rc") p->bConfigRCFrame = atobool(value);
         OPT("threaded-me") p->bThreadedME = atobool(value);
+        OPT("intra-64x64") p->bEnableIntra64x64 = atobool(value);
         else
             return X265_PARAM_BAD_NAME;
     }
@@ -2188,6 +2190,7 @@ void x265_print_params(x265_param* param)
     TOOLOPT(param->bEnableTemporalMvp, "tmvp");
     TOOLOPT(param->bEnableConstrainedIntra, "cip");
     TOOLOPT(param->bIntraInBFrames, "b-intra");
+    TOOLOPT(param->bEnableIntra64x64, "intra-64x64");
     TOOLOPT(param->bEnableFastIntra, "fast-intra");
     TOOLOPT(param->bEnableStrongIntraSmoothing, "strong-intra-smoothing");
     TOOLVAL(param->lookaheadSlices, "lslices=%d");
@@ -2354,6 +2357,7 @@ char *x265_param2string(x265_param* p, int padx, int pady)
     BOOL(p->bEnableTSkipFast, "tskip-fast");
     BOOL(p->bCULossless, "cu-lossless");
     BOOL(p->bIntraInBFrames, "b-intra");
+    BOOL(p->bEnableIntra64x64, "intra-64x64");
     BOOL(p->bEnableSplitRdSkip, "splitrd-skip");
     s += snprintf(s, bufSize - (s - buf), " rdpenalty=%d", p->rdPenalty);
     s += snprintf(s, bufSize - (s - buf), " psy-rd=%.2f", p->psyRd);
@@ -2830,6 +2834,7 @@ void x265_copy_params(x265_param* dst, x265_param* src)
     dst->bEnableTSkipFast = src->bEnableTSkipFast;
     dst->bCULossless = src->bCULossless;
     dst->bIntraInBFrames = src->bIntraInBFrames;
+    dst->bEnableIntra64x64 = src->bEnableIntra64x64;
     dst->rdPenalty = src->rdPenalty;
     dst->psyRd = src->psyRd;
     dst->psyRdoq = src->psyRdoq;

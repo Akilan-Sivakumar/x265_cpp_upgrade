@@ -109,6 +109,9 @@ typedef struct x265_lookahead_data
     uint32_t  *intraVbvCost;
     uint32_t  *satdForVbv;
     uint32_t  *intraSatdForVbv;
+    double    *qpAqOffsets;
+    double    *qpCuTreeOffsets;
+    int       numQPOffsetBlocks;
     int       keyframe;
     int       lastMiniGopBFrame;
     int       plannedType[X265_LOOKAHEAD_MAX + 1];
@@ -223,6 +226,7 @@ typedef struct x265_analysis_data
     int32_t                           edgeHist[EDGE_BINS];
     int32_t                           yuvHist[3][MAX_HIST_BINS];
     int                               bScenecut;
+    int                               QP;
     x265_weight_param*                wt;
     x265_analysis_inter_data*         interData;
     x265_analysis_intra_data*         intraData;
@@ -1644,6 +1648,10 @@ typedef struct x265_param
      * regardless of this setting */
     int       bIntraInBFrames;
 
+    /* Enable 64x64 intra analysis. If enabled, the encoder will perform
+     * 64x64 intra block analysis. Default disabled */
+    int       bEnableIntra64x64;
+
     /* Apply an optional penalty to the estimated cost of 32x32 intra blocks in
      * non-intra slices. 0 is disabled, 1 enables a small penalty, and 2 enables
      * a full penalty. This favors inter-coding and its low bitrate over
@@ -2543,6 +2551,13 @@ int x265_encoder_headers(x265_encoder *, x265_nal **pp_nal, uint32_t *pi_nal);
 int x265_encoder_encode(x265_encoder* encoder, x265_nal** pp_nal, uint32_t* pi_nal, x265_picture* pic_in, x265_picture* pic_out);
 
 /*
+ *      Perform lookahead analysis on the input picture.
+ *      returns negative on error, 1 if a decided picture is output,
+ *      or zero if the encoder pipeline is still filling or is empty after flushing.
+ */
+int x265_encoder_lookahead(x265_encoder* encoder, x265_picture* pic_in, x265_picture* pic_out);
+
+/*
 x265_configure_vbv_end:
 * Set the Vbvend flag based on the totalstreamduration.
 */
@@ -2702,6 +2717,7 @@ typedef struct x265_api
     int           (*encoder_headers)(x265_encoder*, x265_nal**, uint32_t*);
     void          (*configure_vbv_end)(x265_encoder*, x265_picture*, double );
     int           (*encoder_encode)(x265_encoder*, x265_nal**, uint32_t*, x265_picture*, x265_picture*);
+    int           (*encoder_lookahead)(x265_encoder*, x265_picture*,x265_picture*);
     void          (*encoder_get_stats)(x265_encoder*, x265_stats*, uint32_t);
     void          (*encoder_log)(x265_encoder*, int, char**);
     void          (*encoder_close)(x265_encoder*);

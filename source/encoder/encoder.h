@@ -94,8 +94,24 @@ struct EncStats
 
 #define MAX_NUM_REF_IDX 64
 #define DUP_BUFFER 2
-#define doubling 7
-#define tripling 8
+
+enum PicStruct
+{
+    PIC_STRUCT_PROGRESSIVE_FRAME = 0,
+    PIC_STRUCT_FIELD_TOP    = 1,
+    PIC_STRUCT_FIELD_BOTTOM = 2,
+    PIC_STRUCT_TOP_BOTTOM = 3,
+    PIC_STRUCT_BOTTOM_TOP = 4,
+    PIC_STRUCT_TOP_BOTTOM_TOP    = 5,
+    PIC_STRUCT_BOTTOM_TOP_BOTTOM = 6,
+    PIC_STRUCT_DOUBLING = 7,
+    PIC_STRUCT_TRIPLING = 8,
+    PIC_STRUCT_TOP_PREVBOTTOM = 9,
+    PIC_STRUCT_BOTTOM_PREVTOP = 10,
+    PIC_STRUCT_TOP_NEXTBOTTOM = 11,
+    PIC_STRUCT_BOTTOM_NEXTTOP = 12,
+    PIC_STRUCT_COUNT
+};
 
 struct RefIdxLastGOP
 {
@@ -193,6 +209,7 @@ public:
     int                m_bframeDelay;
     int                m_numPools;
     int                m_curEncoder;
+    uint64_t           m_dispPicCount; /* displayed picture count (implied by explicit or implicit picture structure) */
 
     // weighted prediction
     int                m_numLumaWPFrames;    // number of P frames with weighted luma reference
@@ -200,7 +217,6 @@ public:
     int                m_numLumaWPBiFrames;  // number of B frames with weighted luma reference
     int                m_numChromaWPBiFrames; // number of B frames with weighted chroma reference
     int                m_conformanceMode;
-    int                m_lastBPSEI;
     uint32_t           m_numDelayedPic;
 
     ThreadPool*        m_threadPool;

@@ -426,6 +426,7 @@ void x265_param_default(x265_param* param)
     /* Threaded ME */
     param->tmeTaskBlockSize = 1;
     param->tmeNumBufferRows = 10;
+    param->tmeNumThreads = 0;
 
     /*Alpha Channel Encoding*/
     param->bEnableAlpha = 0;
@@ -3010,6 +3011,7 @@ void x265_copy_params(x265_param* dst, x265_param* src)
     dst->bThreadedME = src->bThreadedME;
     dst->tmeTaskBlockSize = src->tmeTaskBlockSize;
     dst->tmeNumBufferRows = src->tmeNumBufferRows;
+    dst->tmeNumThreads = src->tmeNumThreads;
     dst->bEnableFades = src->bEnableFades;
     dst->bEnableSceneCutAwareQp = src->bEnableSceneCutAwareQp;
     dst->fwdMaxScenecutWindow = src->fwdMaxScenecutWindow;

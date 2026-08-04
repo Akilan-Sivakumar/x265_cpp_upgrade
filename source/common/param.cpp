@@ -418,14 +418,12 @@ void x265_param_default(x265_param* param)
 
     /* MCSTF */
     param->bEnableTemporalFilter = 0;
-    param->temporalFilterStrength = 0.95;
-    param->searchRangeForLayer0 = 3;
-    param->searchRangeForLayer1 = 3;
-    param->searchRangeForLayer2 = 3;
+    param->bSelectiveMCSTF = 0;
 
     /* Threaded ME */
     param->tmeTaskBlockSize = 1;
     param->tmeNumBufferRows = 10;
+    param->tmeNumThreads = 0;
 
     /*Alpha Channel Encoding*/
     param->bEnableAlpha = 0;
@@ -1524,6 +1522,8 @@ int x265_param_parse(x265_param* p, const char* name, const char* value)
         OPT("film-grain") p->filmGrain = (char* )value;
         OPT("aom-film-grain") p->aomFilmGrain = (char*)value;
         OPT("mcstf") p->bEnableTemporalFilter = atobool(value);
+        OPT("mcstf-ref-range") p->mcstfFrameRange = atoi(value);
+        OPT("selective-mcstf") p->bSelectiveMCSTF = atobool(value);
         OPT("sbrc") p->bEnableSBRC = atobool(value);
 #if ENABLE_ALPHA
         OPT("alpha")
@@ -1998,6 +1998,11 @@ int x265_check_params(x265_param* param)
             }
         }
     }
+    if (param->mcstfFrameRange > 4)
+    {
+        param->mcstfFrameRange = 4;
+        x265_log(param, X265_LOG_WARNING, "MCSTF reference range should not exceed 4. Setting MCSTF reference range to 4\n");
+    }
     if (param->bEnableHME)
     {
         for (int level = 0; level < 3; level++)
@@ -2131,6 +2136,8 @@ void x265_print_params(x265_param* param)
 {
     if (param->logLevel < X265_LOG_INFO)
         return;
+
+    x265_log(param, X265_LOG_INFO, "Slices                              : %d\n", param->maxSlices);
 
     if (param->interlaceMode)
         x265_log(param, X265_LOG_INFO, "Interlaced field inputs             : %s\n", x265_interlace_names[param->interlaceMode]);
@@ -2268,7 +2275,11 @@ void x265_print_params(x265_param* param)
     TOOLOPT(param->toneMapFile != NULL, "dhdr10-info");
 #endif
     if(param->bEnableTemporalFilter)
+    {
         TOOLOPT(param->bEnableTemporalFilter, "mcstf");
+        TOOLVAL(param->mcstfFrameRange, "mcstf-ref-range=%d");
+        TOOLOPT(param->bSelectiveMCSTF, "selective-mcstf");
+    }
     x265_log(param, X265_LOG_INFO, "tools:%s\n", buf);
     fflush(stderr);
 }
@@ -2532,6 +2543,11 @@ char *x265_param2string(x265_param* p, int padx, int pady)
     if (p->aomFilmGrain)
         s += snprintf(s, bufSize - (s - buf), " aom-film-grain=%s", p->aomFilmGrain);
     BOOL(p->bEnableTemporalFilter, "mcstf");
+    if (p->bEnableTemporalFilter)
+    {
+        s += snprintf(s, bufSize - (s - buf), " mcstf-ref-range=%d", p->mcstfFrameRange);
+        BOOL(p->bSelectiveMCSTF, "selective-mcstf");
+    }
 #if ENABLE_ALPHA
     BOOL(p->bEnableAlpha, "alpha");
 #endif
@@ -2766,6 +2782,7 @@ bool parseMaskingStrength(x265_param* p, const char* value)
 void x265_copy_params(x265_param* dst, x265_param* src)
 {
     dst->mcstfFrameRange = src->mcstfFrameRange;
+    dst->bSelectiveMCSTF = src->bSelectiveMCSTF;
     dst->cpuid = src->cpuid;
     dst->frameNumThreads = src->frameNumThreads;
     if (strlen(src->numaPools)) snprintf(dst->numaPools, X265_MAX_STRING_SIZE, "%s", src->numaPools);
@@ -3049,6 +3066,7 @@ void x265_copy_params(x265_param* dst, x265_param* src)
     dst->bThreadedME = src->bThreadedME;
     dst->tmeTaskBlockSize = src->tmeTaskBlockSize;
     dst->tmeNumBufferRows = src->tmeNumBufferRows;
+    dst->tmeNumThreads = src->tmeNumThreads;
     dst->bEnableFades = src->bEnableFades;
     dst->bEnableSceneCutAwareQp = src->bEnableSceneCutAwareQp;
     dst->fwdMaxScenecutWindow = src->fwdMaxScenecutWindow;
@@ -3064,10 +3082,6 @@ void x265_copy_params(x265_param* dst, x265_param* src)
     }
     dst->bField = src->bField;
     dst->bEnableTemporalFilter = src->bEnableTemporalFilter;
-    dst->temporalFilterStrength = src->temporalFilterStrength;
-    dst->searchRangeForLayer0 = src->searchRangeForLayer0;
-    dst->searchRangeForLayer1 = src->searchRangeForLayer1;
-    dst->searchRangeForLayer2 = src->searchRangeForLayer2;
     dst->confWinRightOffset = src->confWinRightOffset;
     dst->confWinBottomOffset = src->confWinBottomOffset;
     dst->bliveVBV2pass = src->bliveVBV2pass;

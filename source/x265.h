@@ -320,6 +320,8 @@ typedef struct x265_frame_stats
     int64_t          currTrBitrate;
     double           currTrCRF;
     int              currTrQP;
+    int32_t          frameNoise;       /* noise score at GOP start (selective-mcstf); -1 for non-GOP-start frames */
+    int              isMCSTFEnabled;   /* 1 if MCSTF bilateral filter will be applied to this frame */
 } x265_frame_stats;
 
 typedef struct x265_ctu_info_t
@@ -650,6 +652,7 @@ typedef enum
 #define X265_MAX_GOP_CONFIG 3
 #define X265_MAX_GOP_LENGTH 16
 #define MAX_T_LAYERS 7
+#define NOISE_THRESHOLD         40000
 
 #if ENABLE_MULTIVIEW
 #define MAX_VIEWS 2
@@ -2338,11 +2341,9 @@ typedef struct x265_param
 
     /*Motion compensated temporal filter*/
     int      bEnableTemporalFilter;
-    double   temporalFilterStrength;
-    /*Search Range for L0, L1 and L2 in MCTF*/
-    int      searchRangeForLayer0;
-    int      searchRangeForLayer1;
-    int      searchRangeForLayer2;
+    int      mcstfFrameRange;
+    /* When enabled, estimate noise at each GOP boundary and skip MCSTF for clean GOPs */
+    int      bSelectiveMCSTF;
 
     /* Threaded ME */
     /* Number of CTUs processed at once when a worker thread picks up a task from ThreadedME. */
@@ -2351,9 +2352,12 @@ typedef struct x265_param
     /* Number of rows upto which ThreadedME processes tasks ahead of WPP */
     int      tmeNumBufferRows;
 
+    /* Number of worker threads assigned to the ThreadedME thread pools.
+     * Not configurable by the user. */
+    int      tmeNumThreads;
+
     /*SBRC*/
     int      bEnableSBRC;
-    int mcstfFrameRange;
 
     /*Alpha channel encoding*/
     int      bEnableAlpha;

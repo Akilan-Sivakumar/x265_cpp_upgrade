@@ -1980,8 +1980,8 @@ int compute_vmaf(double* vmaf_score, char* fmt, int width, int height, int bitde
         vmaf_model_load(&model, &model_cfg, "vmaf_float_v0.6.1");
     } else {
         vmaf_model_load(&model, &model_cfg, "vmaf_float_4k_v0.6.1");
-	}
-	vmaf_use_features_from_model(vmaf, model);
+    }
+    vmaf_use_features_from_model(vmaf, model);
 #else
 	err = vmaf_model_load_from_path(&model, &model_cfg, model_path);
 	if (err) {

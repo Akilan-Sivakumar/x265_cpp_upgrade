@@ -1,0 +1,137 @@
+name: macOS Build Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  aarch64-darwin:
+    name: AArch64 Darwin
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          set -euxo pipefail
+
+          sw_vers
+          uname -m
+
+          echo "gcc:"
+          gcc --version
+
+          echo "g++:"
+          g++ --version
+
+          echo "cmake:"
+          cmake --version
+
+      - name: Configure
+        working-directory: build/aarch64-darwin
+        run: |
+          set -o pipefail
+
+          cmake \
+            -DCMAKE_TOOLCHAIN_FILE=crosscompile.cmake \
+            -G "Unix Makefiles" \
+            ../../source \
+            2>&1 | tee configure.log
+
+      - name: Build
+        working-directory: build/aarch64-darwin
+        run: |
+          set -o pipefail
+
+          cmake --build . \
+            --parallel "$(sysctl -n hw.ncpu)" \
+            2>&1 | tee build.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-darwin-logs
+          path: |
+            build/aarch64-darwin/configure.log
+            build/aarch64-darwin/build.log
+
+
+  xcode:
+    name: Xcode
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          set -euxo pipefail
+
+          sw_vers
+          uname -m
+
+          xcodebuild -version
+          cmake --version
+
+      - name: Configure Xcode project
+        working-directory: build/xcode
+        run: |
+          set -o pipefail
+
+          cmake \
+            -G "Xcode" \
+            ../../source \
+            2>&1 | tee configure.log
+
+      - name: Build with Xcode
+        working-directory: build/xcode
+        run: |
+          set -o pipefail
+
+          cmake --build . \
+            --config Release \
+            --parallel "$(sysctl -n hw.ncpu)" \
+            2>&1 | tee build.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-logs
+          path: |
+            build/xcode/configure.log
+            build/xcode/build.log
+
+
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs:
+      - aarch64-darwin
+      - xcode
+    if: always()
+
+    steps:
+      - name: Result
+        run: |
+          echo "========================================"
+          echo "       macOS BUILD VALIDATION"
+          echo "========================================"
+          echo
+          echo "AArch64 Darwin : ${{ needs.aarch64-darwin.result }}"
+          echo "Xcode          : ${{ needs.xcode.result }}"
+          echo
+
+          if [ "${{ needs.aarch64-darwin.result }}" != "success" ] || \
+             [ "${{ needs.xcode.result }}" != "success" ]; then
+            echo "RESULT: FAILED"
+            exit 1
+          fi
+
+          echo "RESULT: PASSED"
